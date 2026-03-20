@@ -22,7 +22,23 @@ def fetch_weather_data(start_date="2014-01-01", end_date="2023-12-31"):
     return df
 
 
+import os
+
 def save_raw_data(df, filename):
-    path = f"data/raw/{filename}"
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+
+    path = os.path.join(base_dir, "data", "raw", filename)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
     df.to_csv(path, index=False)
-    print(f"Saved to {path}")
+    print(f"✅ Saved to {path}")
+
+if __name__ == "__main__":
+    print("Testing data loader...")
+
+    df = fetch_weather_data()
+    print(df.head())
+    print("Shape:", df.shape)
+
+    save_raw_data(df, "weather_data.csv")
