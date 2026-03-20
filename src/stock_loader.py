@@ -19,7 +19,39 @@ def fetch_stock_data(start_date="2014-01-01", end_date="2023-12-31"):
 
         df = yf.download(ticker, start=start_date, end=end_date)
 
+        # 🔥 Fix MultiIndex issue
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
         df.reset_index(inplace=True)
+
+        # 🔥 Ensure column names are clean
+        df.columns = [col.strip() for col in df.columns]
+
+        # 🔥 Select only available columns safely
+        cols_needed = ["Date", "Open", "High", "Low", "Close"]
+        cols_present = [c for c in cols_needed if c in df.columns]
+
+        df = df[cols_present]
+
+        # Rename columns
+        df.rename(columns={
+            "Date": "date",
+            "Open": "open",
+            "High": "high",
+            "Low": "low",
+            "Close": "close"
+        }, inplace=True)
+
+        # 🔥 Feature Engineering (only if close exists)
+        if "close" in df.columns:
+            df["return"] = df["close"].pct_change()
+            df["ma_7"] = df["close"].rolling(window=7).mean()
+
+        # Remove nulls
+        df.dropna(inplace=True)
+
+        # Add company column
         df["company"] = name
 
         all_data.append(df)
