@@ -1,0 +1,10 @@
+Weather Data → Feature Engineering → Outbreak Prediction Model
+                                     ↓
+                           Predicted Outbreaks
+                                     ↓
+            Merge with Stock Data → Stock Prediction Model
+                                     ↓
+                          Final Pharma Gain Prediction
+
+
+
