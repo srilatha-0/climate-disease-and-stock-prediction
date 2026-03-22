@@ -2,8 +2,9 @@ import pandas as pd
 import os
 import joblib
 import optuna
+import shap
+import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from xgboost import XGBClassifier
 
@@ -36,7 +37,25 @@ def prepare_data(df):
     X = df[features]
     y = df["target"]
 
-    return X, y
+    return X, y, df
+
+
+# ======================
+# BACKTEST SPLIT (🔥 KEY CHANGE)
+# ======================
+def time_based_split(df, X, y):
+
+    df = df.sort_values("date")
+
+    train_idx = df["date"] < "2022-01-01"
+    test_idx = df["date"] >= "2022-01-01"
+
+    X_train = X[train_idx]
+    X_test = X[test_idx]
+    y_train = y[train_idx]
+    y_test = y[test_idx]
+
+    return X_train, X_test, y_train, y_test
 
 
 # ======================
@@ -66,25 +85,22 @@ def objective(trial, X_train, X_test, y_train, y_test):
 # ======================
 # TRAIN OR LOAD MODEL
 # ======================
-def train_or_load_model(X, y):
+def train_or_load_model(X, y, df):
 
     base_dir = os.path.dirname(os.path.dirname(__file__))
     model_path = os.path.join(base_dir, "models", "xgb_model.pkl")
 
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    # 🔥 TIME SPLIT
+    X_train, X_test, y_train, y_test = time_based_split(df, X, y)
 
-    # Load or Train
     if os.path.exists(model_path):
         print("✅ Loading saved model...")
         model = joblib.load(model_path)
 
     else:
-        print("🚀 Training XGBoost with Optuna...\n")
+        print("🚀 Training with BACKTESTING (real-world split)...\n")
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -115,8 +131,8 @@ def train_or_load_model(X, y):
     # ======================
     preds = model.predict(X_test)
 
-    print("\n📊 MODEL PERFORMANCE")
-    print("=" * 30)
+    print("\n📊 BACKTEST PERFORMANCE (2022–2023)")
+    print("=" * 40)
 
     print(f"Accuracy: {accuracy_score(y_test, preds):.4f}\n")
 
@@ -130,11 +146,38 @@ def train_or_load_model(X, y):
 
 
 # ======================
+# SHAP
+# ======================
+def explain_model(model, X):
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    plot_path = os.path.join(base_dir, "models", "shap_summary.png")
+
+    if os.path.exists(plot_path):
+        print("✅ SHAP already computed.")
+        return
+
+    print("\n🔍 Running SHAP...")
+
+    X_sample = X.sample(n=500, random_state=42)
+
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X_sample)
+
+    shap.summary_plot(shap_values, X_sample, show=False)
+
+    plt.savefig(plot_path, bbox_inches="tight")
+    print(f"📊 Saved at {plot_path}")
+
+
+# ======================
 # MAIN
 # ======================
 if __name__ == "__main__":
 
     df = load_data()
-    X, y = prepare_data(df)
+    X, y, df = prepare_data(df)
 
-    model = train_or_load_model(X, y)
+    model = train_or_load_model(X, y, df)
+
+    explain_model(model, X)

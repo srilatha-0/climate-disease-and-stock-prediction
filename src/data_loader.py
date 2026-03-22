@@ -1,127 +1,90 @@
+import requests
 import pandas as pd
-import os
+import time
 
 # -----------------------------
-# REGION -> CITIES mapping
+# Cities & Coordinates
 # -----------------------------
-REGION_CITY_MAP = {
-    "North": ["Delhi", "Chandigarh", "Jaipur"],
-    "South": ["Bengaluru", "Hyderabad", "Chennai", "Kochi"],
-    "West": ["Mumbai", "Ahmedabad", "Pune"],
-    "East": ["Kolkata", "Bhubaneswar", "Patna"],
-    "Northeast": ["Guwahati", "Shillong", "Imphal"],
-    "Central": ["Bhopal", "Raipur"],
-    "Northwest": ["Jammu", "Shimla"],
-    "Southeast": ["Visakhapatnam", "Thiruvananthapuram"]
+CITY_COORDS = {
+    "Delhi": (28.6139, 77.2090),
+    "Mumbai": (19.0760, 72.8777),
+    "Kolkata": (22.5726, 88.3639),
+    "Hyderabad": (17.3850, 78.4867),
+    "Bengaluru": (12.9716, 77.5946),
+    "Chennai": (13.0827, 80.2707)
 }
 
 # -----------------------------
-# STATE -> REGION mapping
+# Years
 # -----------------------------
-STATE_REGION_MAP = {
-    # North
-    "Delhi": "North", "Haryana": "North", "Punjab": "North", "Uttar Pradesh": "North", "Rajasthan": "North",
-    # South
-    "Karnataka": "South", "Telangana": "South", "Andhra Pradesh": "South", "Tamil Nadu": "South", "Kerala": "South",
-    # West
-    "Maharashtra": "West", "Gujarat": "West",
-    # East
-    "West Bengal": "East", "Odisha": "East", "Bihar": "East", "Jharkhand": "East",
-    # Northeast
-    "Assam": "Northeast", "Arunachal Pradesh": "Northeast", "Nagaland": "Northeast",
-    "Manipur": "Northeast", "Mizoram": "Northeast", "Tripura": "Northeast", "Meghalaya": "Northeast", "Sikkim": "Northeast",
-    # Central
-    "Madhya Pradesh": "Central", "Chhattisgarh": "Central",
-    # Northwest
-    "Jammu and Kashmir": "Northwest", "Himachal Pradesh": "Northwest",
-    # Southeast
-    "Andaman and Nicobar Islands": "Southeast", "Puducherry": "Southeast"
-}
+START_YEAR = 2014
+END_YEAR = 2023
 
 # -----------------------------
-# FUNCTION: Create disease features
+# FIXED API FUNCTION
 # -----------------------------
-def create_disease_features(disease_df, weather_df):
-    df = disease_df.copy()
-    df["region"] = df["state"].map(STATE_REGION_MAP)
-    
-    # -----------------------------
-    # Prepare weather for regions
-    # -----------------------------
-    # Keep only cities in REGION_CITY_MAP
-    weather_df = weather_df[weather_df["city"].isin([c for cities in REGION_CITY_MAP.values() for c in cities])].copy()
-    weather_df["date"] = pd.to_datetime(weather_df["date"])
-    
-    # Map city -> region
-    city_to_region = {city: region for region, cities in REGION_CITY_MAP.items() for city in cities}
-    weather_df["region"] = weather_df["city"].map(city_to_region)
-    
-    # Average weather per region per date
-    region_weather = weather_df.groupby(["region", "date"])[["temp","rainfall","humidity"]].mean().reset_index()
-    
-    # Merge region weather with states
-    df_merged = df.merge(region_weather, on=["region", "date"], how="left")
-    
-    # -----------------------------
-    # Normalize climate features
-    # -----------------------------
-    for col in ["temp", "rainfall", "humidity"]:
-        df_merged[f"{col}_norm"] = (df_merged[col] - df_merged[col].min()) / (df_merged[col].max() - df_merged[col].min())
-    
-    # -----------------------------
-    # Outbreak score
-    # -----------------------------
-    df_merged["outbreak_score"] = (
-        0.4 * df_merged["rainfall_norm"] +
-        0.3 * df_merged["humidity_norm"] +
-        0.3 * df_merged["temp_norm"]
+def fetch_weather(lat, lon, start_date, end_date):
+    url = (
+        "https://archive-api.open-meteo.com/v1/archive?"
+        f"latitude={lat}&longitude={lon}"
+        f"&start_date={start_date}&end_date={end_date}"
+        "&daily=temperature_2m_mean,precipitation_sum"
+        "&timezone=Asia/Kolkata"
     )
-    
-    # -----------------------------
-    # Adaptive threshold (top 25% = outbreak)
-    # -----------------------------
-    threshold = df_merged["outbreak_score"].quantile(0.75)
-    df_merged["outbreak"] = (df_merged["outbreak_score"] > threshold).astype(int)
-    
-    print("\nThreshold used:", threshold)
-    print("\nOutbreak distribution:")
-    print(df_merged["outbreak"].value_counts())
-    
-    return df_merged
+
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+
+        if "daily" not in data:
+            return None
+
+        df = pd.DataFrame(data["daily"])
+        return df
+
+    except Exception as e:
+        print(f"❌ API error: {e}")
+        return None
+
 
 # -----------------------------
-# FUNCTION: Save processed data
+# MAIN LOOP
 # -----------------------------
-def save_processed_data(df, filename):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(base_dir, "data", "processed", filename)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    df.to_csv(path, index=False)
-    print(f"\n✅ Saved to {path}")
+weather_results = []
+
+for city, (lat, lon) in CITY_COORDS.items():
+    print(f"\n📍 Fetching weather for {city}")
+    city_has_data = False
+
+    for year in range(START_YEAR, END_YEAR + 1):
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
+
+        df_year = fetch_weather(lat, lon, start_date, end_date)
+
+        if df_year is None or df_year.empty:
+            print(f"⚠️ No data for {city} in {year}")
+            continue
+
+        city_has_data = True
+        df_year["city"] = city
+        df_year["year"] = year
+        weather_results.append(df_year)
+
+        time.sleep(1)
+
+    if not city_has_data:
+        print(f"❌ No data at all for {city}")
+
 
 # -----------------------------
-# MAIN
+# SAVE
 # -----------------------------
-if __name__ == "__main__":
-    print("Generating disease features...")
+if weather_results:
+    weather_df = pd.concat(weather_results, ignore_index=True)
+    weather_df.to_csv("weather_fixed.csv", index=False)
 
-    # Load disease data
-    disease_file = os.path.join("data", "raw", "disease_yearly_states.csv")
-    df_disease = pd.read_csv(disease_file)
-    
-    # Create dummy date for yearly data (Jan 1 of year)
-    df_disease["date"] = pd.to_datetime(df_disease["year"].astype(str) + "-01-01")
-    
-    # Load weather data
-    weather_file = os.path.join("data", "raw", "weather_data_all_cities.csv")
-    df_weather = pd.read_csv(weather_file)
-    
-    # Generate disease features
-    df_final = create_disease_features(df_disease, df_weather)
-    
-    # Show sample
-    print("\nSample data:")
-    print(df_final[["state", "region", "date", "outbreak_score", "outbreak"]].head())
-    
-    # Save processed file
-    save_processed_data(df_final, "state_weather_with_disease.csv")
+    print("\n✅ Data saved: weather_fixed.csv")
+    print("Cities fetched:", weather_df["city"].unique())
+else:
+    print("\n❌ No data fetched at all")
