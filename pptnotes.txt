@@ -8,3 +8,7 @@ Weather Data → Feature Engineering → Outbreak Prediction Model
 
 
 
+backtesing
+optuna
+shap
+cached model 
