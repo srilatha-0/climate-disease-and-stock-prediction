@@ -1,112 +1,279 @@
 import os
 import pandas as pd
 import yfinance as yf
-import matplotlib.pyplot as plt
 
 # =========================
-# Paths for your project
+# PATHS
 # =========================
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "data", "processed")  # dengue CSVs
-OUTPUT_PATH = os.path.join(BASE_DIR, "data", "processed")
+
+STATE_DATA_PATH = os.path.join(
+    BASE_DIR,
+    "Dengue-Brasil-Arboviroses-Dataset-Brazil-Dengue-Arboviral-Diseases-Dataset",
+    "DengueDataset",
+    "data"
+)
+
+SPIKE_PATH = os.path.join(BASE_DIR, "data", "processed", "dengue_spike_months.csv")
+STOCK_PATH = os.path.join(BASE_DIR, "data", "stocks")
+OUTPUT_PATH = os.path.join(BASE_DIR, "data", "updatethis")
+
+os.makedirs(STOCK_PATH, exist_ok=True)
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
 # =========================
-# Load dengue spike CSV
+# STEP 1 — DOWNLOAD STOCKS
 # =========================
-spike_df = pd.read_csv(os.path.join(DATA_PATH, "dengue_spike_months.csv"), index_col=0)
+print("\n🚀 Downloading pharma stocks...")
 
-# Convert month strings to lists
-# =========================
-# parsing of spike months
-# =========================
-def parse_months(val):
-    if pd.isna(val) or val == "-":
-        return []
-    # Convert each element to float first, then int
-    return [int(float(x)) for x in str(val).split(",")]
+stocks = ["HYPE3.SA", "FLRY3.SA", "RADL3.SA", "AALR3.SA", "ODPV3.SA"]
 
-# Apply per column
-parsed_spike = spike_df.copy()
+for stock in stocks:
+    path = os.path.join(STOCK_PATH, f"{stock}.csv")
+
+    if os.path.exists(path):
+        print(f"✅ Already exists: {stock}")
+        continue
+
+    print(f"⬇️ Downloading {stock}")
+    df = yf.download(stock, start="2017-01-01", end="2021-12-31", progress=False)
+
+    if df.empty:
+        print(f"⚠️ Skipped {stock}")
+        continue
+
+    df.to_csv(path)
+
+# =========================
+# STEP 2 — PROCESS STOCK DATA
+# =========================
+print("\n🚀 Processing stock data...")
+
+stock_monthly = {}
+
+for file in os.listdir(STOCK_PATH):
+    if not file.endswith(".csv"):
+        continue
+
+    print(f"\n🔄 Processing: {file}")
+
+    try:
+        file_path = os.path.join(STOCK_PATH, file)
+
+        df = pd.read_csv(file_path)
+
+        # Clean column names
+        df.columns = df.columns.str.strip()
+
+        # Rename first column to Date
+        df.rename(columns={df.columns[0]: "Date"}, inplace=True)
+
+        # Remove empty rows
+        df = df[df["Date"].notna()]
+        df = df[df["Date"] != ""]
+
+        # Convert Date
+        df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="coerce")
+        df = df.dropna(subset=["Date"])
+
+        # Convert numeric columns
+        for col in ["Close", "Open", "High", "Low", "Volume"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # Ensure Close exists
+        if "Close" not in df.columns:
+            print("❌ No Close column → skipping")
+            continue
+
+        df = df.dropna(subset=["Close"])
+
+        if df.empty:
+            print("❌ Empty after cleaning → skipping")
+            continue
+
+        print(f"✅ Cleaned rows: {len(df)}")
+
+        # Create monthly
+        df["Year"] = df["Date"].dt.year
+        df["Month"] = df["Date"].dt.month
+
+        monthly = df.groupby(["Year", "Month"])["Close"].mean().reset_index()
+        monthly["Return"] = monthly["Close"].pct_change()
+        monthly["Return"] = monthly["Return"].fillna(0)
+
+        stock_name = file.replace(".csv", "")
+        stock_monthly[stock_name] = monthly
+
+        print(f"✅ Ready: {stock_name}")
+
+    except Exception as e:
+        print(f"❌ Failed {file}: {e}")
+
+print(f"\n📊 Total stocks ready: {len(stock_monthly)}")
+
+# =========================
+# LOAD SPIKE DATA
+# =========================
+spike_df = pd.read_csv(SPIKE_PATH)
+
+# Drop unwanted column
+if "state_peak_month" in spike_df.columns:
+    spike_df.drop(columns=["state_peak_month"], inplace=True)
+
+# Set index (state name)
+spike_df.set_index(spike_df.columns[0], inplace=True)
+
+# Fix column names (2017.0 → 2017)
+fixed_cols = []
 for col in spike_df.columns:
-    if col not in ["state_peak_month"]:  # ignore non-year columns
-        parsed_spike[col] = spike_df[col].apply(parse_months)
+    try:
+        fixed_cols.append(str(int(float(col))))
+    except:
+        fixed_cols.append(col)
+
+spike_df.columns = fixed_cols
+
+print("✅ Spike columns fixed:", spike_df.columns)
 
 # =========================
-# Prepare national monthly dengue signal
+# STEP 3 — STATE ANALYSIS + MERGE
 # =========================
-years = [2017,2018,2019,2020,2021]
-months = range(1,13)
-dengue_signal = []
+print("\n🚀 Starting STATE-WISE analysis + merging...")
 
-for year in years:
-    for month in months:
-        count = 0
-        for state in parsed_spike.index:
-            if month in parsed_spike.loc[state, str(year)]:
-                count += 1
-        dengue_signal.append({
-            "Year": year,
-            "Month": month,
-            "Outbreak_Count": count,
-            "Dengue_Spike_Binary": 1 if count>0 else 0
-        })
+all_state_files = []
 
-dengue_df = pd.DataFrame(dengue_signal)
+for root, dirs, files in os.walk(STATE_DATA_PATH):
+    for file in files:
+        if file.endswith(".csv"):
+            all_state_files.append(os.path.join(root, file))
 
-# =========================
-# Fetch Brazilian pharma stock data
-# =========================
-tickers = ["CBAV3.SA", "RDOR3.SA", "HAPV3.SA", "QUAL3.SA", "CRFB3.SA"]
-start_date = "2017-01-01"
-end_date = "2021-12-31"
+print(f"\n📊 Total states: {len(all_state_files)}")
 
-stock_data = {}
-for t in tickers:
-    df = yf.download(t, start=start_date, end=end_date, interval="1mo")
-    df = df.reset_index()[["Date","Close"]]
-    df["Year"] = df["Date"].dt.year
-    df["Month"] = df["Date"].dt.month
-    df["Monthly_Return"] = df["Close"].pct_change()
-    stock_data[t] = df[["Year","Month","Monthly_Return"]]
+for idx, file_path in enumerate(all_state_files, 1):
 
-# Merge all stocks
-stocks_df = stock_data[tickers[0]].copy().rename(columns={"Monthly_Return": tickers[0]})
-for t in tickers[1:]:
-    stocks_df = stocks_df.merge(stock_data[t], on=["Year","Month"], how="outer")
-    stocks_df = stocks_df.rename(columns={"Monthly_Return": t})
+    try:
+        state_name = os.path.basename(file_path).replace(".csv", "")
 
-# =========================
-# Merge dengue spike with stocks
-# =========================
-merged_df = pd.merge(stocks_df, dengue_df, on=["Year","Month"], how="left")
+        print("\n==============================")
+        print(f"🔍 [{idx}] STATE: {state_name}")
+        print("==============================")
 
-# =========================
-# Correlation analysis
-# =========================
-print("📊 Correlation of stocks with dengue spikes:")
-for t in tickers:
-    corr = merged_df[t].corr(merged_df["Dengue_Spike_Binary"])
-    print(f"{t}: {corr:.3f}")
+        df = pd.read_csv(file_path)
+        df.columns = df.columns.str.strip()
 
-# =========================
-# Plot stock vs dengue spikes
-# =========================
-for t in tickers:
-    plt.figure(figsize=(12,4))
-    plt.plot(merged_df["Year"].astype(str)+"-"+merged_df["Month"].astype(str), merged_df[t], label=t)
-    plt.scatter(
-        merged_df[merged_df["Dengue_Spike_Binary"]==1]["Year"].astype(str)+"-"+merged_df[merged_df["Dengue_Spike_Binary"]==1]["Month"].astype(str),
-        merged_df[merged_df["Dengue_Spike_Binary"]==1][t],
-        color="red", label="Dengue Spike"
-    )
-    plt.xticks(rotation=90)
-    plt.title(f"{t} vs Dengue Spike Months")
-    plt.legend()
-    plt.show()
+        # Date processing
+        df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+        df = df.dropna(subset=["Data"])
 
-# =========================
-# Save merged CSV (optional)
-# =========================
-merged_df.to_csv(os.path.join(OUTPUT_PATH, "stocks_dengue_merged.csv"), index=False)
-print("🎉 Merged stock+dengue CSV saved!")
+        df = df[(df["Data"].dt.year >= 2017) & (df["Data"].dt.year <= 2021)]
+
+        df["Year"] = df["Data"].dt.year
+        df["Month"] = df["Data"].dt.month
+
+        if state_name not in spike_df.index:
+            print("⚠️ No spike data → skipping")
+            continue
+
+        row = spike_df.loc[state_name]
+
+        selected_stocks = []
+
+        # =========================
+        # ANALYSIS
+        # =========================
+        for stock_name, sdf in stock_monthly.items():
+
+            print(f"\n📈 Analyzing {stock_name}...")
+
+            spike_returns = []
+            normal_returns = []
+
+            for year in ["2017","2018","2019","2020","2021"]:
+
+                if year not in row or pd.isna(row[year]):
+                    continue
+
+                months = str(row[year]).split(",")
+
+                for m in months:
+                    m = int(float(m))
+
+                    val = sdf[(sdf["Year"] == int(year)) & (sdf["Month"] == m)]
+
+                    if not val.empty:
+                        spike_returns.append(val["Return"].values[0])
+
+            for _, r in sdf.iterrows():
+                if r["Return"] not in spike_returns:
+                    normal_returns.append(r["Return"])
+
+            if len(spike_returns) == 0:
+                print("⚠️ No spike data")
+                continue
+
+            spike_avg = pd.Series(spike_returns).mean()
+            normal_avg = pd.Series(normal_returns).mean()
+
+            diff = spike_avg - normal_avg
+
+            if diff > 0.01:
+                relation = "UP 📈"
+                selected_stocks.append(stock_name)
+            elif diff < -0.01:
+                relation = "DOWN 📉"
+                selected_stocks.append(stock_name)
+            else:
+                relation = "NORMAL ➖"
+
+            print(f"➡️ {relation} (diff={diff:.4f})")
+
+        print(f"\n✅ Selected stocks: {selected_stocks}")
+
+        # =========================
+        # MERGE
+        # =========================
+        added_cols = []
+
+        for stock in selected_stocks:
+            sdf = stock_monthly[stock]
+
+            temp = sdf.rename(columns={
+                "Close": f"{stock}_Close",
+                "Return": f"{stock}_Return"
+            })
+
+            df = pd.merge(df, temp, on=["Year","Month"], how="left")
+
+            added_cols += [f"{stock}_Close", f"{stock}_Return"]
+
+        print(f"📊 Columns added: {added_cols}")
+
+        # =========================
+        # CORRELATION FOR ALL STATES + ALL SELECTED STOCKS
+        # =========================
+        dengue_col = "Taxa de Internações por Dengue"
+
+        if len(selected_stocks) > 0 and dengue_col in df.columns:
+
+            monthly_dengue = df.groupby(["Year","Month"])[dengue_col].mean().reset_index()
+
+            for stock in selected_stocks:
+                stock_close_col = f"{stock}_Close"
+                stock_data = df.groupby(["Year","Month"])[stock_close_col].mean().reset_index()
+
+                merged_temp = pd.merge(monthly_dengue, stock_data, on=["Year","Month"])
+                corr = merged_temp[dengue_col].corr(merged_temp[stock_close_col])
+
+                print(f"📊 [{state_name}] Correlation between dengue and {stock}: {corr:.4f}")
+
+        # SAVE
+        out_path = os.path.join(OUTPUT_PATH, f"{state_name}_merged.csv")
+        df.to_csv(out_path, index=False)
+
+        print(f"💾 Saved: {state_name}")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+print("\n🎉 DONE — FULL PIPELINE + CORRELATION COMPLETE!")
