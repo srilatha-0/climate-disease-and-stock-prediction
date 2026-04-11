@@ -10,6 +10,7 @@ STOCK_PATH  = os.path.join(BASE_DIR, "data", "stocks")      # National stock CSV
 OUTPUT_PATH = os.path.join(BASE_DIR, "data", "updatethis")
 STATE_DATA_PATH = os.path.join(
     BASE_DIR,
+    "data",
     "Dengue-Brasil-Arboviroses-Dataset-Brazil-Dengue-Arboviral-Diseases-Dataset",
     "DengueDataset",
     "data"

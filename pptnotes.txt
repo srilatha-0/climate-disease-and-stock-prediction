@@ -12,3 +12,10 @@ backtesing
 optuna
 shap
 cached model 
+
+
+1. Home
+2. Prediction
+3. Climate Analysis
+4. Stock Insights
+5. Model Performance

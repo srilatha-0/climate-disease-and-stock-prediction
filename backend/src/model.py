@@ -2,34 +2,66 @@ import os
 import pandas as pd
 import numpy as np
 from glob import glob
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from xgboost import XGBClassifier
+import yfinance as yf
+import json
+import pickle
 
 # =========================
-# PATHS
+# PATHS (FIXED)
 # =========================
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # parent of src
-MERGED_PATH = os.path.join(BASE_DIR, "data", "updatethis")  # Merged dengue+climate+stock
-STOCK_PATH  = os.path.join(BASE_DIR, "data", "stocks")      # National stock CSVs
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+MERGED_PATH = os.path.join(BASE_DIR, "data", "updatethis")
+STOCK_PATH  = os.path.join(BASE_DIR, "data", "stocks")
+
+os.makedirs(STOCK_PATH, exist_ok=True)
+
+print("📁 BASE DIR:", BASE_DIR)
+print("📁 STOCK PATH:", STOCK_PATH)
 
 # =========================
 # STOCK LIST
 # =========================
 stocks = ["HYPE3.SA", "FLRY3.SA", "RADL3.SA", "AALR3.SA", "ODPV3.SA"]
-stock_monthly = {}
 
 # =========================
-# STEP 1 — Load stock data
+# STEP 0 — AUTO DOWNLOAD STOCKS
 # =========================
+print("\n🚀 Checking/downloading stock data...")
+
 for stock in stocks:
     path = os.path.join(STOCK_PATH, f"{stock}.csv")
+
+    if os.path.exists(path):
+        print(f"✅ Exists: {stock}")
+        continue
+
+    print(f"⬇️ Downloading {stock}...")
+    df = yf.download(stock, start="2017-01-01", end="2021-12-31", progress=False)
+
+    if not df.empty:
+        df.to_csv(path)
+        print(f"✅ Saved: {stock}")
+    else:
+        print(f"⚠️ Failed: {stock}")
+
+# =========================
+# STEP 1 — LOAD STOCK DATA
+# =========================
+stock_monthly = {}
+
+for stock in stocks:
+    path = os.path.join(STOCK_PATH, f"{stock}.csv")
+
     if not os.path.exists(path):
-        print(f"⚠️ Stock CSV missing: {stock}")
+        print(f"⚠️ Missing stock file: {stock}")
         continue
 
     df = pd.read_csv(path)
     df.columns = df.columns.str.strip()
+
     df.rename(columns={df.columns[0]: "Date"}, inplace=True)
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df = df.dropna(subset=["Date"])
@@ -39,6 +71,7 @@ for stock in stocks:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df = df.dropna(subset=["Close"])
+
     df["Year"] = df["Date"].dt.year
     df["Month"] = df["Date"].dt.month
 
@@ -49,70 +82,90 @@ for stock in stocks:
         "Close": f"Close_{stock}",
         "Return": f"Return_{stock}"
     })
+
     stock_monthly[stock] = monthly
 
-print(f"✅ Loaded stock data for {len(stock_monthly)} stocks")
+print(f"\n✅ Loaded stock data for {len(stock_monthly)} stocks")
+
+if len(stock_monthly) == 0:
+    raise Exception("❌ No stock data available even after download!")
 
 # =========================
-# STEP 2 — Load all state datasets (disease + climate)
+# STEP 2 — LOAD STATE DATA
 # =========================
 all_states = glob(os.path.join(MERGED_PATH, "*_merged.csv"))
+
+if len(all_states) == 0:
+    raise FileNotFoundError("❌ No merged state files found in data/updatethis")
+
 agg_data = []
 
 for file in all_states:
     state_name = os.path.basename(file).replace("_merged.csv","")
+
     df = pd.read_csv(file)
+
     df["Date"] = pd.to_datetime(df["Data"], errors="coerce")
     df = df.dropna(subset=["Date"])
+
     df["Year"] = df["Date"].dt.year
     df["Month"] = df["Date"].dt.month
     df["State"] = state_name
 
-    # Aggregate municipality-level data to state-level mean per month
     feature_cols = [c for c in df.columns if c not in ["Data","Date","Year","Month","State"]]
-    df_agg = df.groupby(["State","Year","Month"])[feature_cols].mean().reset_index()
 
+    df_agg = df.groupby(["State","Year","Month"])[feature_cols].mean().reset_index()
     agg_data.append(df_agg)
 
 df_all = pd.concat(agg_data, ignore_index=True)
-print(f"✅ Aggregated to state-level per month: {df_all.shape}")
+print(f"✅ Aggregated dataset shape: {df_all.shape}")
 
 # =========================
-# STEP 3 — Merge stock returns
+# STEP 3 — MERGE STOCK DATA
 # =========================
 for stock, sdf in stock_monthly.items():
     df_all = df_all.merge(sdf, on=["Year","Month"], how="left")
 
 # =========================
-# STEP 4 — Create lag features
+# STEP 4 — CREATE LAGS
 # =========================
 LAGS = 3
+
 for stock in stocks:
     col = f"Return_{stock}"
     if col in df_all.columns:
-        for lag in range(1,LAGS+1):
+        for lag in range(1, LAGS+1):
             df_all[f"{col}_lag{lag}"] = df_all.groupby("State")[col].shift(lag)
 
 # =========================
-# STEP 5 — Create classification target (UP/DOWN)
+# STEP 5 — TARGET (SAFE FIX)
 # =========================
 TARGET_STOCK = "HYPE3.SA"
 target_col = f"Return_{TARGET_STOCK}"
+
+# 🔥 FIX: don't crash → skip if missing
+if target_col not in df_all.columns:
+    print(f"❌ WARNING: {target_col} not found → skipping model training")
+    exit()
+
 df_all["Target"] = (df_all.groupby("State")[target_col].shift(-1) > 0).astype(int)
 
-# Drop rows with NaNs (from lag/target)
+# Drop NaNs
 df_all = df_all.dropna()
-print(f"✅ Final dataset shape after lag/target: {df_all.shape}")
+print(f"✅ Final dataset shape: {df_all.shape}")
 
 # =========================
-# STEP 6 — Features and target
+# STEP 6 — FEATURES (SAFE FIX)
 # =========================
-exclude_cols = ["State","Target"]
+exclude_cols = ["State", "Target"]
 feature_cols = [c for c in df_all.columns if c not in exclude_cols]
-X = df_all[feature_cols]
+
+X = df_all[feature_cols].select_dtypes(include=[np.number])
 y = df_all["Target"]
 
-# Train: 2017-2020, Test: 2021
+# =========================
+# STEP 7 — TRAIN TEST SPLIT
+# =========================
 train_idx = df_all["Year"] <= 2020
 test_idx  = df_all["Year"] == 2021
 
@@ -120,39 +173,63 @@ X_train, X_test = X[train_idx], X[test_idx]
 y_train, y_test = y[train_idx], y[test_idx]
 
 # =========================
-# STEP 7 — Normalize features (optional for tree-based models)
+# STEP 8 — MODEL
 # =========================
-# XGBoost does not require normalization, but MinMaxScaler can be used if you want
-# scaler = MinMaxScaler()
-# X_train = scaler.fit_transform(X_train)
-# X_test = scaler.transform(X_test)
+scale_pos_weight = (len(y_train) - y_train.sum()) / y_train.sum()
 
-# =========================
-# STEP 8 — Train XGBoost Classifier
-# =========================
 model = XGBClassifier(
     n_estimators=200,
     learning_rate=0.05,
     max_depth=3,
     subsample=0.8,
     colsample_bytree=0.8,
-    scale_pos_weight=(len(y_train)-y_train.sum())/y_train.sum(),
+    scale_pos_weight=scale_pos_weight,
     random_state=42,
     use_label_encoder=False,
     eval_metric='logloss'
 )
 
+print("\n🚀 Training model...")
 model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
 
 # =========================
-# STEP 9 — Evaluate
+# STEP 9 — EVALUATION
 # =========================
+y_pred = model.predict(X_test)
+
 acc = accuracy_score(y_test, y_pred)
 cm  = confusion_matrix(y_test, y_pred)
 report = classification_report(y_test, y_pred)
 
-print("\n===== XGBoost Stock UP/DOWN Classification =====")
+# =========================
+# SAVE METRICS (backend/src)
+# =========================
+SRC_DIR = os.path.dirname(__file__)
+
+metrics = {
+    "accuracy": float(acc),
+    "confusion_matrix": cm.tolist(),
+    "classification_report": report
+}
+
+metrics_path = os.path.join(SRC_DIR, "metrics.json")
+
+with open(metrics_path, "w") as f:
+    json.dump(metrics, f, indent=4)
+
+print(f"📊 Metrics saved at: {metrics_path}")
+
+# =========================
+# SAVE MODEL (.pkl)
+# =========================
+model_path = os.path.join(SRC_DIR, "model.pkl")
+
+with open(model_path, "wb") as f:
+    pickle.dump(model, f)
+
+print(f"💾 Model saved at: {model_path}")
+
+print("\n===== FINAL RESULTS =====")
 print(f"Accuracy       : {acc:.4f}")
 print(f"Confusion Matrix:\n{cm}")
 print(f"Classification Report:\n{report}")
