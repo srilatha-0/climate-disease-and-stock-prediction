@@ -1,0 +1,98 @@
+{
+    "APOLLOHOSP_PRICE": {
+        "accuracy": 0.297,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+            [
+                30,
+                0
+            ],
+            [
+                71,
+                0
+            ]
+        ]
+    },
+    "AUROPHARMA_PRICE": {
+        "accuracy": 0.455,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+            [
+                46,
+                0
+            ],
+            [
+                55,
+                0
+            ]
+        ]
+    },
+    "CIPLA_PRICE": {
+        "accuracy": 0.436,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+            [
+                44,
+                0
+            ],
+            [
+                57,
+                0
+            ]
+        ]
+    },
+    "DRREDDY_PRICE": {
+        "accuracy": 0.436,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+            [
+                44,
+                0
+            ],
+            [
+                57,
+                0
+            ]
+        ]
+    },
+    "LUPIN_PRICE": {
+        "accuracy": 0.386,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+            [
+                39,
+                0
+            ],
+            [
+                62,
+                0
+            ]
+        ]
+    },
+    "SUNPHARMA_PRICE": {
+        "accuracy": 0.267,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+            [
+                27,
+                0
+            ],
+            [
+                74,
+                0
+            ]
+        ]
+    }
+}
