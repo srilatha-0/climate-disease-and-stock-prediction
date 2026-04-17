@@ -1,3 +1,5 @@
 datasets
 data
 Dengue-Brasil-Arboviroses-Dataset-Brazil-Dengue-Arboviral-Diseases-Dataset
+backend/__pycache__/
+frontend/src/utils/

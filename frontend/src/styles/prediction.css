@@ -1,0 +1,213 @@
+/* =========================
+   BASE PAGE
+========================= */
+.dashboard {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #1f2937;
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+.dashboard h1 {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.dashboard p {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 25px;
+}
+
+/* =========================
+   INPUT BOX
+========================= */
+.input-box {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  margin-bottom: 25px;
+}
+
+.control-box {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 14px 18px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+  transition: 0.2s ease;
+}
+
+.control-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.06);
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.number-input {
+  width: 70px;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* =========================
+   SLIDER
+========================= */
+input[type="range"] {
+  width: 100%;
+  height: 5px;
+  border-radius: 10px;
+  background: #e5e7eb;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4f46e5;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+}
+
+/* =========================
+   BUTTON
+========================= */
+button {
+  display: block;
+  margin: 10px auto 0;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(79,70,229,0.25);
+}
+
+/* =========================
+   RESULTS
+========================= */
+.results {
+  margin-top: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* =========================
+   CARD (NORMAL)
+========================= */
+.card {
+  background: rgb(239, 237, 241);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+/* =========================
+   HIGHLIGHT CARD (FIXED)
+========================= */
+.card.highlight {
+  text-align: center;
+  background: linear-gradient(135deg, #2614ca, #e3e3e8);
+  color: white;
+}
+
+.card.highlight h1,
+.card.highlight h2,
+.card.highlight h3 {
+  color: white;
+}
+
+/* =========================
+   BAR GRAPH
+========================= */
+.bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.bar {
+  flex: 1;
+  height: 8px;
+  background: #dcdde1;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 0 10px;
+}
+
+.fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.5s ease;
+}
+
+.fill.season {
+  background: #a6b1ba;
+}
+
+/* =========================
+   STATE GRID (OPTIONAL)
+========================= */
+.state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.state-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+  transition: 0.2s;
+}
+
+.state-card:hover {
+  transform: scale(1.03);
+}
+
+/* =========================
+   ANIMATION
+========================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
