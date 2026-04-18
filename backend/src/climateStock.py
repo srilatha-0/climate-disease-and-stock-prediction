@@ -1,147 +1,151 @@
-import os
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+import os
+import json
+import joblib
 
-# =========================
-# PATHS
-# =========================
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
 
-climate_path = os.path.join(DATA_DIR, "final_quarterly_dataset.csv")
-stock_path = os.path.join(DATA_DIR, "stock_quarterly_dataset.csv")
+# -------------------------------
+# Paths (UNCHANGED)
+# -------------------------------
+DATA_PATH = "../data/climate_stock_extended.csv"
+MODEL_DIR = "../data/models"
+META_PATH = "../data/model_meta.json"
+ACCURACY_PATH = "../data/accuracy_metrics.json"
 
-# =========================
-# LOAD DATA
-# =========================
-climate = pd.read_csv(climate_path)
-stock = pd.read_csv(stock_path)
+os.makedirs(MODEL_DIR, exist_ok=True)
 
-# =========================
-# CLEAN
-# =========================
-climate.columns = climate.columns.str.strip().str.upper()
-stock.columns = stock.columns.str.strip().str.upper()
+# -------------------------------
+# Load dataset
+# -------------------------------
+df = pd.read_csv(DATA_PATH)
 
-def fix_quarter(q):
-    if pd.isna(q):
-        return np.nan
-    q = str(q).strip().upper()
-    if q in ["1","1.0","Q1"]: return "Q1"
-    if q in ["2","2.0","Q2"]: return "Q2"
-    if q in ["3","3.0","Q3"]: return "Q3"
-    if q in ["4","4.0","Q4"]: return "Q4"
-    return np.nan
+df = df[(df["YEAR"] >= 2002) & (df["YEAR"] <= 2014)]
+df = df.sort_values(by=["YEAR", "Q_NUM"]).reset_index(drop=True)
 
-climate["QUARTER"] = climate["QUARTER"].apply(fix_quarter)
-stock["QUARTER"] = stock["QUARTER"].apply(fix_quarter)
+# -------------------------------
+# Stocks
+# -------------------------------
+stocks = [
+    "APOLLOHOSP", "AUROPHARMA", "CIPLA",
+    "DRREDDY", "LUPIN", "SUNPHARMA"
+]
 
-# =========================
-# NUMERIC CONVERSION
-# =========================
-for c in climate.columns:
-    if c not in ["YEAR","QUARTER"]:
-        climate[c] = pd.to_numeric(climate[c], errors="coerce")
+metrics = {}
 
-for c in stock.columns:
-    if c not in ["YEAR","QUARTER"]:
-        stock[c] = pd.to_numeric(stock[c], errors="coerce")
+# -------------------------------
+# Train per stock
+# -------------------------------
+for stock in stocks:
 
-# =========================
-# QUARTER TO NUMBER
-# =========================
-q_map = {"Q1":1,"Q2":2,"Q3":3,"Q4":4}
-climate["Q_NUM"] = climate["QUARTER"].map(q_map)
+    print(f"\nTraining {stock}...")
 
-# =========================
-# TRAIN DATA (1901–2014 ONLY)
-# =========================
-train = climate[climate["YEAR"] <= 2014].copy()
+    price_col = f"{stock}_PRICE"
 
-# FEATURES FOR TIME
-train["TIME"] = train["YEAR"] * 4 + train["Q_NUM"]
+    temp = df[["YEAR", "Q_NUM", "R", "T", "H", price_col]].copy()
+    temp.rename(columns={price_col: "PRICE"}, inplace=True)
 
-# =========================
-# MODEL INPUTS
-# =========================
-features = ["TIME"]
+    # Remove invalid prices
+    temp = temp[temp["PRICE"] > 0]
 
-targets = [c for c in climate.columns if c not in ["YEAR","QUARTER","Q_NUM","TIME"]]
+    # Sort
+    temp = temp.sort_values(by=["YEAR", "Q_NUM"])
 
-# =========================
-# TRAIN MODELS FOR EACH CLIMATE COLUMN
-# =========================
-models = {}
+    # -------------------------------
+    # SIMPLE + EFFECTIVE LAG
+    # -------------------------------
+    temp["PRICE_LAG1"] = temp["PRICE"].shift(1)
 
-for t in targets:
-    temp = train[[t, "TIME"]].dropna()
+    # Target
+    temp["NEXT_PRICE"] = temp["PRICE"].shift(-1)
+    temp["TARGET"] = (temp["NEXT_PRICE"] > temp["PRICE"]).astype(int)
 
-    if len(temp) < 10:
-        continue
+    # Drop NaNs (only 1 row lost now)
+    temp = temp.dropna()
 
-    X = temp[["TIME"]]
-    y = temp[t]
+    # -------------------------------
+    # Feature Engineering
+    # -------------------------------
+    temp["TEMP_HUM"] = temp["T"] * temp["H"]
+    temp["RAIN_HUM"] = temp["R"] * temp["H"]
 
-    model = RandomForestRegressor(
+    X = temp[
+        ["R", "T", "H", "TEMP_HUM", "RAIN_HUM", "PRICE_LAG1"]
+    ]
+
+    y = temp["TARGET"]
+
+    # -------------------------------
+    # Split (time-based)
+    # -------------------------------
+    split = int(len(X) * 0.8)
+
+    X_train, X_test = X.iloc[:split], X.iloc[split:]
+    y_train, y_test = y.iloc[:split], y.iloc[split:]
+
+    # -------------------------------
+    # Model (balanced)
+    # -------------------------------
+    model = RandomForestClassifier(
         n_estimators=200,
-        random_state=42
+        random_state=42,
+        class_weight="balanced"
     )
 
-    model.fit(X, y)
-    models[t] = model
+    model.fit(X_train, y_train)
 
-# =========================
-# CREATE FUTURE DATA (2015–2026)
-# =========================
-future = []
+    # -------------------------------
+    # Evaluate
+    # -------------------------------
+    y_pred = model.predict(X_test)
 
-for year in range(2015, 2027):
-    for q in [1,2,3,4]:
-        future.append({
-            "YEAR": year,
-            "QUARTER": f"Q{q}",
-            "Q_NUM": q,
-            "TIME": year * 4 + q
-        })
+    if len(y_test) > 0:
+        acc = accuracy_score(y_test, y_pred)
+        cm = confusion_matrix(y_test, y_pred).tolist()
 
-future = pd.DataFrame(future)
+        metrics[stock] = {
+            "accuracy": round(float(acc), 4),
+            "confusion_matrix": cm
+        }
 
-# =========================
-# PREDICT CLIMATE VALUES
-# =========================
-for col, model in models.items():
-    future[col] = model.predict(future[["TIME"]])
+        print("Accuracy:", acc)
+        print("Confusion Matrix:", cm)
 
-# =========================
-# COMBINE CLIMATE
-# =========================
-climate_full = pd.concat([climate, future], ignore_index=True)
+    else:
+        metrics[stock] = {
+            "accuracy": None,
+            "confusion_matrix": None
+        }
 
-# =========================
-# MERGE WITH STOCK
-# =========================
-df = pd.merge(
-    climate_full,
-    stock,
-    on=["YEAR","QUARTER"],
-    how="outer"
-)
+    # -------------------------------
+    # Save model (UNCHANGED STRUCTURE)
+    # -------------------------------
+    model_path = os.path.join(MODEL_DIR, f"model_{stock}.pkl")
+    joblib.dump(model, model_path)
 
-df = df.sort_values(["YEAR","Q_NUM"])
+    print(f"{stock} model saved!")
 
-# =========================
-# FILL ONLY STOCK MISSING
-# =========================
-stock_cols = [c for c in stock.columns if c not in ["YEAR","QUARTER"]]
-df[stock_cols] = df[stock_cols].fillna(0)
+# -------------------------------
+# Save metrics
+# -------------------------------
+with open(ACCURACY_PATH, "w") as f:
+    json.dump(metrics, f, indent=4)
 
-# =========================
-# SAVE FINAL DATASET
-# =========================
-output_path = os.path.join(DATA_DIR, "climate_stock_extended.csv")
-df.to_csv(output_path, index=False)
+# -------------------------------
+# Save metadata
+# -------------------------------
+meta = {
+    "features": [
+        "R", "T", "H",
+        "TEMP_HUM", "RAIN_HUM",
+        "PRICE_LAG1"
+    ],
+    "stocks": stocks
+}
 
-print("✅ CLIMATE PATTERN LEARNED + EXTENDED")
-print("Saved at:", output_path)
-print(df.head(10))
+with open(META_PATH, "w") as f:
+    json.dump(meta, f, indent=4)
+
+print("\n✅ FINAL STABLE MODEL BUILT!")
