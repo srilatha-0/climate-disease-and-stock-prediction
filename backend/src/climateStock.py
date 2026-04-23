@@ -54,15 +54,12 @@ for stock in stocks:
     temp = temp.sort_values(by=["YEAR", "Q_NUM"])
 
     # -------------------------------
-    # SIMPLE + EFFECTIVE LAG
+    # Target (UNCHANGED)
     # -------------------------------
-    temp["PRICE_LAG1"] = temp["PRICE"].shift(1)
-
-    # Target
     temp["NEXT_PRICE"] = temp["PRICE"].shift(-1)
     temp["TARGET"] = (temp["NEXT_PRICE"] > temp["PRICE"]).astype(int)
 
-    # Drop NaNs (only 1 row lost now)
+    # Drop NaNs
     temp = temp.dropna()
 
     # -------------------------------
@@ -71,8 +68,9 @@ for stock in stocks:
     temp["TEMP_HUM"] = temp["T"] * temp["H"]
     temp["RAIN_HUM"] = temp["R"] * temp["H"]
 
+    # ❌ Removed PRICE_LAG1
     X = temp[
-        ["R", "T", "H", "TEMP_HUM", "RAIN_HUM", "PRICE_LAG1"]
+        ["R", "T", "H", "TEMP_HUM", "RAIN_HUM"]
     ]
 
     y = temp["TARGET"]
@@ -86,7 +84,7 @@ for stock in stocks:
     y_train, y_test = y.iloc[:split], y.iloc[split:]
 
     # -------------------------------
-    # Model (balanced)
+    # Model (UNCHANGED)
     # -------------------------------
     model = RandomForestClassifier(
         n_estimators=200,
@@ -120,7 +118,7 @@ for stock in stocks:
         }
 
     # -------------------------------
-    # Save model (UNCHANGED STRUCTURE)
+    # Save model
     # -------------------------------
     model_path = os.path.join(MODEL_DIR, f"model_{stock}.pkl")
     joblib.dump(model, model_path)
@@ -134,13 +132,12 @@ with open(ACCURACY_PATH, "w") as f:
     json.dump(metrics, f, indent=4)
 
 # -------------------------------
-# Save metadata
+# Save metadata (UPDATED)
 # -------------------------------
 meta = {
     "features": [
         "R", "T", "H",
-        "TEMP_HUM", "RAIN_HUM",
-        "PRICE_LAG1"
+        "TEMP_HUM", "RAIN_HUM"
     ],
     "stocks": stocks
 }
@@ -148,4 +145,4 @@ meta = {
 with open(META_PATH, "w") as f:
     json.dump(meta, f, indent=4)
 
-print("\n✅ FINAL STABLE MODEL BUILT!")
+print("\n✅ FINAL MODEL (WITHOUT PRICE_LAG1) BUILT!")
