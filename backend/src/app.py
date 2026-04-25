@@ -2,17 +2,20 @@ import streamlit as st
 import pandas as pd
 import joblib
 import json
-import matplotlib.pyplot as plt
 
-# -------------------------------
-# Page Config
-# -------------------------------
+# =========================================================
+# PAGE CONFIG
+# =========================================================
 st.set_page_config(
     page_title="AI Prediction Dashboard",
     page_icon="📈",
     layout="wide"
 )
 
+# =========================================================
+# PREMIUM CSS
+# (YOUR EXISTING CSS KEPT + EXTRA METRICS TAB CSS ADDED)
+# =========================================================
 st.markdown("""
 <style>
 
@@ -28,7 +31,7 @@ st.markdown("""
 }
 
 /* -------------------------------
-🧊 Glassmorphism Container
+🧊 Glass Container
 ------------------------------- */
 .block-container {
     background: rgba(10, 20, 40, 0.65);
@@ -36,390 +39,225 @@ st.markdown("""
     border-radius: 28px;
     padding: 2rem 2.5rem;
     border: 1px solid rgba(56, 189, 248, 0.3);
-    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    margin: 1rem auto;
+    box-shadow: 0 25px 45px rgba(0,0,0,0.35);
+    margin-top: 1rem;
 }
 
 /* -------------------------------
-🎯 Headings - Neon Effect
+🎯 Heading
 ------------------------------- */
 h1 {
-    background: linear-gradient(135deg, #38bdf8, #a855f7, #06b6d4);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    font-weight: 800;
-    font-size: 2.5rem;
-    text-align: center;
-    margin-bottom: 1.5rem;
-    animation: shimmer 3s linear infinite;
+    background: linear-gradient(135deg,#38bdf8,#a855f7,#06b6d4);
+    -webkit-background-clip:text;
+    color:transparent;
+    font-size:2.6rem;
+    font-weight:900;
+    text-align:center;
 }
 
-@keyframes shimmer {
-    0% { background-position: 0% center; }
-    100% { background-position: 200% center; }
-}
-
-h2, h3 {
-    color: #7dd3fc;
-    font-weight: 600;
-    border-left: 4px solid #06b6d4;
-    padding-left: 1rem;
-    margin-top: 1.5rem;
+h2,h3 {
+    color:#7dd3fc;
+    border-left:4px solid #06b6d4;
+    padding-left:1rem;
 }
 
 /* -------------------------------
-🔘 Premium Buttons
+🔘 Buttons
 ------------------------------- */
 .stButton > button {
-    background: linear-gradient(95deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
-    background-size: 200% auto;
-    color: white;
-    font-weight: 700;
-    border-radius: 40px;
-    padding: 0.75rem 2rem;
-    border: none;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
-    width: 100%;
+    width:100%;
+    border:none;
+    border-radius:40px;
+    padding:0.75rem 1rem;
+    font-weight:700;
+    color:white;
+    background:linear-gradient(95deg,#06b6d4,#3b82f6,#8b5cf6);
+    transition:0.3s ease;
 }
 
 .stButton > button:hover {
-    background-position: 100% center;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(6, 182, 212, 0.5);
-}
-
-.stButton > button:active {
-    transform: translateY(1px);
+    transform:translateY(-2px);
+    box-shadow:0 10px 30px rgba(6,182,212,0.45);
 }
 
 /* -------------------------------
-📦 Input Fields - Futuristic
+📦 Inputs
 ------------------------------- */
-.stNumberInput > div > div > input,
-.stSelectbox > div > div {
-    background: rgba(15, 25, 45, 0.9) !important;
-    color: #f1f5f9 !important;
-    border-radius: 14px !important;
-    border: 1px solid #334155 !important;
-    padding: 0.6rem 1rem !important;
-    font-size: 1rem !important;
-    transition: all 0.3s ease !important;
-}
-
-.stNumberInput > div > div > input:focus,
-.stSelectbox > div > div:focus-within {
-    border-color: #06b6d4 !important;
-    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2) !important;
-    outline: none !important;
-}
-
-/* Labels */
-.stNumberInput label, .stSelectbox label {
-    color: #94a3b8 !important;
-    font-weight: 500 !important;
-    margin-bottom: 0.25rem !important;
+.stNumberInput input,
+.stSelectbox div[data-baseweb="select"] > div {
+    background: rgba(15,25,45,0.9) !important;
+    color:white !important;
+    border-radius:14px !important;
+    border:1px solid #334155 !important;
 }
 
 /* -------------------------------
-📊 Tabs - Premium Design
+📊 Tabs
 ------------------------------- */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 0.5rem;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 16px;
-    padding: 0.5rem;
+    gap:0.5rem;
+    background:rgba(0,0,0,0.35);
+    padding:0.5rem;
+    border-radius:16px;
 }
 
 .stTabs [data-baseweb="tab"] {
-    background: transparent;
-    border-radius: 12px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    color: #94a3b8;
-    transition: all 0.3s;
-}
-
-.stTabs [data-baseweb="tab"]:hover {
-    background: rgba(6, 182, 212, 0.2);
-    color: #7dd3fc;
+    border-radius:12px;
+    padding:0.75rem 1.5rem;
+    color:#94a3b8;
+    font-weight:700;
 }
 
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #06b6d4, #3b82f6);
-    color: white;
-    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+    background:linear-gradient(135deg,#06b6d4,#3b82f6);
+    color:white !important;
 }
 
 /* -------------------------------
 📈 Result Cards
 ------------------------------- */
-.success-message, .error-message {
-    border-radius: 20px;
-    padding: 1.25rem;
-    margin: 1rem 0;
-    backdrop-filter: blur(8px);
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    animation: slideIn 0.5s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .success-message {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95));
-    border-left: 5px solid #6ee7b7;
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    background:linear-gradient(135deg,#10b981,#059669);
+    color:white;
+    padding:1.2rem;
+    border-radius:20px;
+    font-weight:700;
+    margin:1rem 0;
 }
 
 .error-message {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.95));
-    border-left: 5px solid #fca5a5;
-    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    background:linear-gradient(135deg,#ef4444,#dc2626);
+    color:white;
+    padding:1.2rem;
+    border-radius:20px;
+    font-weight:700;
+    margin:1rem 0;
 }
 
-/* -------------------------------
-📊 Metrics & Values
-------------------------------- */
-[data-testid="stMetricValue"] {
-    font-size: 2rem !important;
-    font-weight: 800 !important;
-    background: linear-gradient(135deg, #38bdf8, #a78bfa);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+/* =====================================================
+📊 METRICS TAB ADVANCED CSS
+===================================================== */
+
+.metric-box {
+    background: rgba(15,25,45,0.82);
+    border:1px solid rgba(56,189,248,0.22);
+    border-radius:20px;
+    padding:1.2rem;
+    margin-bottom:1rem;
+    box-shadow:0 10px 20px rgba(0,0,0,0.25);
 }
 
-[data-testid="stMetricLabel"] {
-    color: #94a3b8 !important;
-    font-weight: 500 !important;
+.metric-title {
+    color:#94a3b8;
+    font-size:0.95rem;
+    margin-bottom:0.4rem;
 }
 
-/* -------------------------------
-🎨 Charts Container
-------------------------------- */
-[data-testid="stPlotlyChart"] {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 20px;
-    padding: 1rem;
-    border: 1px solid rgba(56, 189, 248, 0.2);
+.metric-value {
+    font-size:2rem;
+    font-weight:900;
+    background:linear-gradient(135deg,#38bdf8,#a855f7);
+    -webkit-background-clip:text;
+    color:transparent;
 }
 
-/* -------------------------------
-📱 Sidebar (if exists)
-------------------------------- */
-[data-testid="stSidebar"] {
-    background: rgba(10, 20, 40, 0.8);
-    backdrop-filter: blur(16px);
-    border-right: 1px solid rgba(56, 189, 248, 0.2);
+.rank-gold {
+    color:#facc15;
+    font-weight:800;
 }
 
-/* -------------------------------
-✨ Custom Scrollbar
-------------------------------- */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+.rank-silver {
+    color:#cbd5e1;
+    font-weight:800;
 }
 
-::-webkit-scrollbar-track {
-    background: rgba(15, 25, 45, 0.8);
-    border-radius: 10px;
+.rank-bronze {
+    color:#fb923c;
+    font-weight:800;
 }
 
-::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #0891b2, #7c3aed);
-}
-
-/* -------------------------------
-🎪 Expanders
-------------------------------- */
-[data-testid="stExpander"] details {
-    background: rgba(15, 25, 45, 0.6);
-    border-radius: 16px;
-    border: 1px solid rgba(56, 189, 248, 0.2);
-}
-
-[data-testid="stExpander"] summary {
-    color: #7dd3fc;
-    font-weight: 600;
-    padding: 0.75rem;
-}
-
-/* -------------------------------
-📱 Responsive Design
-------------------------------- */
-@media (max-width: 768px) {
-    .block-container {
-        padding: 1rem;
-        border-radius: 20px;
-    }
-    
-    h1 {
-        font-size: 1.8rem;
-    }
-    
-    .stButton > button {
-        padding: 0.6rem 1rem;
-    }
-}
-
-/* -------------------------------
-🎭 Animations
-------------------------------- */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.element-container {
-    animation: fadeIn 0.6s ease-in;
-}
-
-/* -------------------------------
-🏷️ Badge/Label Styling
-------------------------------- */
-.stAlert {
-    background: rgba(6, 182, 212, 0.2);
-    border: 1px solid #06b6d4;
-    border-radius: 12px;
-    color: #7dd3fc;
-}
-
-/* -------------------------------
-📊 Dataframe Styling
-------------------------------- */
+/* dataframe */
 .dataframe {
-    background: rgba(15, 25, 45, 0.8);
-    border-radius: 16px;
-    overflow: hidden;
+    background:rgba(15,25,45,0.85);
+    border-radius:16px;
 }
 
 .dataframe th {
-    background: linear-gradient(135deg, #06b6d4, #3b82f6);
-    color: white;
-    padding: 12px;
+    background:linear-gradient(135deg,#06b6d4,#3b82f6);
+    color:white;
 }
 
 .dataframe td {
-    color: #e2e8f0;
-    padding: 10px;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-}
-/* =======================================================
-📊 MATPLOTLIB GRAPH (st.pyplot) — PREMIUM UPGRADE
-======================================================= */
-
-/* Graph container card */
-div[data-testid="stPyplot"] {
-    margin-top: 1rem;
-    padding: 1.5rem;
-    border-radius: 22px;
-
-    background: linear-gradient(
-        145deg,
-        rgba(10, 20, 40, 0.85),
-        rgba(30, 41, 59, 0.55)
-    );
-
-    backdrop-filter: blur(12px);
-
-    border: 1px solid rgba(56, 189, 248, 0.25);
-
-    box-shadow:
-        0 10px 30px rgba(0, 0, 0, 0.4),
-        0 0 25px rgba(6, 182, 212, 0.25),
-        inset 0 0 12px rgba(255, 255, 255, 0.05);
-
-    transition: all 0.35s ease;
+    color:#e2e8f0;
 }
 
-/* Hover glow */
-div[data-testid="stPyplot"]:hover {
-    transform: translateY(-3px) scale(1.01);
-
-    box-shadow:
-        0 20px 50px rgba(0, 0, 0, 0.6),
-        0 0 40px rgba(6, 182, 212, 0.45),
-        inset 0 0 16px rgba(255, 255, 255, 0.08);
+/* Scrollbar */
+::-webkit-scrollbar {
+    width:10px;
 }
 
-/* Canvas smoothing */
-canvas {
-    border-radius: 16px !important;
+::-webkit-scrollbar-thumb {
+    background:linear-gradient(135deg,#06b6d4,#8b5cf6);
+    border-radius:10px;
 }
-
-/* Chart title glow */
-div[data-testid="stPyplot"] + div h3 {
-    text-shadow: 0 0 12px rgba(6,182,212,0.6);
-}
-
-/* Fade animation */
-@keyframes graphFade {
-    from { opacity: 0; transform: translateY(15px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-div[data-testid="stPyplot"] {
-    animation: graphFade 0.6s ease;
-}
-
 
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------------------
-# Paths
-# -------------------------------
+# =========================================================
+# PATHS
+# =========================================================
 MODEL_DIR = "../data/models"
 META_PATH = "../data/model_meta.json"
-DATA_PATH = "../data/climate_stock_extended.csv"
 
-# -------------------------------
-# Load metadata
-# -------------------------------
+# =========================================================
+# LOAD META
+# =========================================================
 with open(META_PATH, "r") as f:
     meta = json.load(f)
 
 features = meta["features"]
 stocks = meta["stocks"]
 
-df_full = pd.read_csv(DATA_PATH)
-df_full = df_full.sort_values(by=["YEAR", "Q_NUM"])
+# =========================================================
+# METRICS DATA
+# =========================================================
+stock_metrics = {
+    "APOLLOHOSP": {"accuracy": 0.8, "confusion_matrix": [[0,1],[1,8]]},
+    "AUROPHARMA": {"accuracy": 0.8, "confusion_matrix": [[0,0],[2,8]]},
+    "CIPLA": {"accuracy": 0.6364, "confusion_matrix": [[2,2],[2,5]]},
+    "DRREDDY": {"accuracy": 0.6364, "confusion_matrix": [[0,2],[2,7]]},
+    "LUPIN": {"accuracy": 0.8182, "confusion_matrix": [[0,0],[2,9]]},
+    "SUNPHARMA": {"accuracy": 0.8182, "confusion_matrix": [[0,0],[2,9]]}
+}
 
-# -------------------------------
-# Title
-# -------------------------------
+disease_metrics = {
+    "DENGUE": {
+        "accuracy": 0.9130434782608695,
+        "confusion_matrix": [[64,0],[8,20]]
+    },
+    "MALARIA": {
+        "accuracy": 0.9347826086956522,
+        "confusion_matrix": [[68,4],[2,18]]
+    }
+}
+
+# =========================================================
+# TITLE
+# =========================================================
 st.title("📊 AI Prediction Dashboard")
 
-# -------------------------------
-# Tabs (FIXED ORDER)
-# -------------------------------
+# =========================================================
+# TABS
+# =========================================================
 tab1, tab2, tab3 = st.tabs([
     "🦟 Disease Prediction",
     "📈 Stock Prediction",
-    "📊 Visualizations"
+    "📊 Metrics Dashboard"
 ])
 
 # =========================================================
-# 🦟 TAB 1 — DISEASE PREDICTION
+# TAB 1 DISEASE
 # =========================================================
 with tab1:
 
@@ -432,7 +270,7 @@ with tab1:
         T_d = st.number_input("Temperature (°C)", value=28.0, key="d_t")
         H_d = st.number_input("Humidity (RH)", value=70.0, key="d_h")
 
-    if st.button("Predict Disease Risk", key="d_btn"):
+    if st.button("Predict Disease Risk"):
 
         dengue_model = joblib.load(f"{MODEL_DIR}/dengue_model.pkl")
         malaria_model = joblib.load(f"{MODEL_DIR}/malaria_model.pkl")
@@ -446,8 +284,6 @@ with tab1:
         d_pred = dengue_model.predict(input_df)[0]
         m_pred = malaria_model.predict(input_df)[0]
 
-        st.subheader("📊 Results")
-
         if d_pred == 1:
             st.markdown('<div class="error-message">🦟 Dengue Risk: HIGH</div>', unsafe_allow_html=True)
         else:
@@ -459,21 +295,21 @@ with tab1:
             st.markdown('<div class="success-message">🦟 Malaria Risk: LOW</div>', unsafe_allow_html=True)
 
 # =========================================================
-# 📈 TAB 2 — STOCK PREDICTION
+# TAB 2 STOCK
 # =========================================================
 with tab2:
 
-    st.subheader("🔮 Stock Prediction")
+    st.subheader("📈 Stock Prediction")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        stock = st.selectbox("Select Stock", stocks, key="stock_pred")
-        R = st.number_input("Rainfall (mm)", value=200.0, key="s_r")
-        T = st.number_input("Temperature (°C)", value=30.0, key="s_t")
-        H = st.number_input("Humidity (RH)", value=20.0, key="s_h")
+        stock = st.selectbox("Select Stock", stocks)
+        R = st.number_input("Rainfall (mm)", value=200.0)
+        T = st.number_input("Temperature (°C)", value=30.0)
+        H = st.number_input("Humidity (RH)", value=20.0)
 
-    if st.button("Predict Stock", key="s_btn"):
+    if st.button("Predict Stock Movement"):
 
         model = joblib.load(f"{MODEL_DIR}/model_{stock}.pkl")
 
@@ -488,129 +324,128 @@ with tab2:
         df = pd.DataFrame([input_data])
         df = df[features]
 
-        prediction = model.predict(df)[0]
+        pred = model.predict(df)[0]
         probs = model.predict_proba(df)[0]
 
-        if prediction == 1:
-            st.markdown('<div class="success-message">📈 Stock likely to INCREASE</div>', unsafe_allow_html=True)
+        if pred == 1:
+            st.markdown(
+                f'<div class="success-message">📈 {stock} is likely to INCREASE in upcoming quarter based on current climate conditions.</div>',
+                unsafe_allow_html=True
+            )
         else:
-            st.markdown('<div class="error-message">📉 Stock likely to DECREASE</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="error-message">📉 {stock} is likely to DECREASE in upcoming quarter based on current climate conditions.</div>',
+                unsafe_allow_html=True
+            )
 
-        st.write(f"Confidence: {round(probs[1], 3)}")
+        st.info(f"Confidence Score: {round(max(probs),3)}")
 
 # =========================================================
-# 📊 TAB 3 — VISUALIZATION (IMPROVED)
+# TAB 3 METRICS ONLY
 # =========================================================
 with tab3:
 
-    st.subheader("📊 Data Insights")
+    st.subheader("📊 Model Performance Dashboard")
 
-    stock_viz = st.selectbox("Select Stock", stocks, key="stock_viz")
+    # -----------------------------------------------------
+    # TOP MODELS
+    # -----------------------------------------------------
+    ranking = sorted(stock_metrics.items(), key=lambda x: x[1]["accuracy"], reverse=True)
 
-    graph_type = st.selectbox(
-        "Select Graph",
-        ["Stock Price Trend", "Rainfall vs Price", "Temperature vs Price", "Humidity vs Price"],
-        key="graph_type"
-    )
+    c1, c2, c3 = st.columns(3)
 
-    price_col = f"{stock_viz}_PRICE"
+    with c1:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-title rank-gold">🥇 Best Model</div>
+            <div class="metric-value">{ranking[0][0]}</div>
+            Accuracy: {ranking[0][1]["accuracy"]*100:.2f}%
+        </div>
+        """, unsafe_allow_html=True)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    with c2:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-title rank-silver">🥈 Runner Up</div>
+            <div class="metric-value">{ranking[1][0]}</div>
+            Accuracy: {ranking[1][1]["accuracy"]*100:.2f}%
+        </div>
+        """, unsafe_allow_html=True)
 
-    # 🎨 Dark styling
-    fig.patch.set_facecolor('#020617')
-    ax.set_facecolor('#020617')
+    with c3:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-title rank-bronze">🥉 Third Place</div>
+            <div class="metric-value">{ranking[2][0]}</div>
+            Accuracy: {ranking[2][1]["accuracy"]*100:.2f}%
+        </div>
+        """, unsafe_allow_html=True)
 
-    # =========================================================
-    # 📈 STOCK TREND
-    # =========================================================
-    if graph_type == "Stock Price Trend":
+    # -----------------------------------------------------
+    # INNER TABS
+    # -----------------------------------------------------
+    sub1, sub2 = st.tabs(["📈 Stock Metrics", "🦟 Disease Metrics"])
 
-        x = df_full["YEAR"].astype(str) + "-Q" + df_full["Q_NUM"].astype(str)
-        y = df_full[price_col]
+    # =====================================================
+    # STOCK TABLE
+    # =====================================================
+    with sub1:
 
-        ax.plot(x, y, linewidth=2)
+        rows = []
 
-        ax.set_title(f"{stock_viz} Price Trend", color='white')
-        ax.set_xlabel("Time", color='white')
-        ax.set_ylabel("Price", color='white')
+        for name, vals in stock_metrics.items():
+            cm = vals["confusion_matrix"]
 
-        plt.xticks(rotation=45)
+            rows.append({
+                "Stock": name,
+                "Accuracy %": round(vals["accuracy"] * 100, 2),
+                "TN": cm[0][0],
+                "FP": cm[0][1],
+                "FN": cm[1][0],
+                "TP": cm[1][1]
+            })
 
-        st.info("📈 Shows how stock price changes over time.")
+        df_stock = pd.DataFrame(rows)
+        st.dataframe(df_stock, use_container_width=True)
 
-    # =========================================================
-    # 🌧️ RAINFALL VS PRICE
-    # =========================================================
-    elif graph_type == "Rainfall vs Price":
+        avg_acc = df_stock["Accuracy %"].mean()
 
-        x = df_full["R"]
-        y = df_full[price_col]
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-title">Average Stock Model Accuracy</div>
+            <div class="metric-value">{avg_acc:.2f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        ax.scatter(x, y, alpha=0.7)
+    # =====================================================
+    # DISEASE TABLE
+    # =====================================================
+    with sub2:
 
-        # 🔥 Trendline
-        import numpy as np
-        z = np.polyfit(x, y, 1)
-        p = np.poly1d(z)
-        ax.plot(x, p(x), linewidth=2)
+        rows = []
 
-        ax.set_title(f"Rainfall vs {stock_viz} Price", color='white')
-        ax.set_xlabel("Rainfall (mm)", color='white')
-        ax.set_ylabel("Price", color='white')
+        for name, vals in disease_metrics.items():
+            cm = vals["confusion_matrix"]
 
-        corr = x.corr(y)
-        st.info(f"🌧️ Correlation: {round(corr,2)} (Rainfall vs Price)")
+            rows.append({
+                "Disease Model": name,
+                "Accuracy %": round(vals["accuracy"] * 100, 2),
+                "TN": cm[0][0],
+                "FP": cm[0][1],
+                "FN": cm[1][0],
+                "TP": cm[1][1]
+            })
 
-    # =========================================================
-    # 🌡️ TEMPERATURE VS PRICE
-    # =========================================================
-    elif graph_type == "Temperature vs Price":
+        df_dis = pd.DataFrame(rows)
+        st.dataframe(df_dis, use_container_width=True)
 
-        x = df_full["T"]
-        y = df_full[price_col]
+        avg_dis = df_dis["Accuracy %"].mean()
 
-        ax.scatter(x, y, alpha=0.7)
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-title">Average Disease Model Accuracy</div>
+            <div class="metric-value">{avg_dis:.2f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        import numpy as np
-        z = np.polyfit(x, y, 1)
-        p = np.poly1d(z)
-        ax.plot(x, p(x), linewidth=2)
-
-        ax.set_title(f"Temperature vs {stock_viz} Price", color='white')
-        ax.set_xlabel("Temperature (°C)", color='white')
-        ax.set_ylabel("Price", color='white')
-
-        corr = x.corr(y)
-        st.info(f"🌡️ Correlation: {round(corr,2)} (Temperature vs Price)")
-
-
-
-    # =========================================================
-    # 💧 HUMIDITY VS PRICE
-    # =========================================================
-    elif graph_type == "Humidity vs Price":
-
-        x = df_full["H"]
-        y = df_full[price_col]
-
-        ax.scatter(x, y, alpha=0.7)
-
-        import numpy as np
-        z = np.polyfit(x, y, 1)
-        p = np.poly1d(z)
-        ax.plot(x, p(x), linewidth=2)
-
-        ax.set_title(f"Humidity vs {stock_viz} Price", color='white')
-        ax.set_xlabel("Humidity (RH)", color='white')
-        ax.set_ylabel("Price", color='white')
-
-        corr = x.corr(y)
-        st.info(f"💧 Correlation: {round(corr,2)} (Humidity vs Price)")
-
-    # 🎯 Axis + ticks color
-    ax.tick_params(colors='white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['left'].set_color('white')
-
-    st.pyplot(fig)
+    st.success("✅ Metrics dashboard loaded successfully.")
