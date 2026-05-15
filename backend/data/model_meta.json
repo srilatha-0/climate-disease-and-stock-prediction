@@ -1,0 +1,17 @@
+{
+    "features": [
+        "R",
+        "T",
+        "H",
+        "TEMP_HUM",
+        "RAIN_HUM"
+    ],
+    "stocks": [
+        "APOLLOHOSP",
+        "AUROPHARMA",
+        "CIPLA",
+        "DRREDDY",
+        "LUPIN",
+        "SUNPHARMA"
+    ]
+}

@@ -1,5 +1,4 @@
-datasets
-data
-Dengue-Brasil-Arboviroses-Dataset-Brazil-Dengue-Arboviral-Diseases-Dataset
+datasets/
 backend/__pycache__/
 frontend/src/utils/
+*.pyc

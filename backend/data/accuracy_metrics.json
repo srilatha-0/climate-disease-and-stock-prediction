@@ -1,0 +1,80 @@
+{
+    "APOLLOHOSP": {
+        "accuracy": 0.8,
+        "confusion_matrix": [
+            [
+                0,
+                1
+            ],
+            [
+                1,
+                8
+            ]
+        ]
+    },
+    "AUROPHARMA": {
+        "accuracy": 0.8,
+        "confusion_matrix": [
+            [
+                0,
+                0
+            ],
+            [
+                2,
+                8
+            ]
+        ]
+    },
+    "CIPLA": {
+        "accuracy": 0.6364,
+        "confusion_matrix": [
+            [
+                2,
+                2
+            ],
+            [
+                2,
+                5
+            ]
+        ]
+    },
+    "DRREDDY": {
+        "accuracy": 0.6364,
+        "confusion_matrix": [
+            [
+                0,
+                2
+            ],
+            [
+                2,
+                7
+            ]
+        ]
+    },
+    "LUPIN": {
+        "accuracy": 0.8182,
+        "confusion_matrix": [
+            [
+                0,
+                0
+            ],
+            [
+                2,
+                9
+            ]
+        ]
+    },
+    "SUNPHARMA": {
+        "accuracy": 0.8182,
+        "confusion_matrix": [
+            [
+                0,
+                0
+            ],
+            [
+                2,
+                9
+            ]
+        ]
+    }
+}

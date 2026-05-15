@@ -207,8 +207,10 @@ h2,h3 {
 # =========================================================
 # PATHS
 # =========================================================
-MODEL_DIR = "../data/models"
-META_PATH = "../data/model_meta.json"
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "backend", "data", "models")
+META_PATH = os.path.join(BASE_DIR, "backend", "data", "model_meta.json")
 
 # =========================================================
 # LOAD META
